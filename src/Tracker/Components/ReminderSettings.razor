@@ -22,6 +22,15 @@
         </button>
     </div>
 
+    <div class="keep-open">
+        <Icon Name="alert" Size="18" />
+        <p>
+            <strong>Keep Tracker open in a browser tab to get reminders.</strong>
+            A background or pinned tab is fine, but if the tab or browser is closed, or your computer is asleep,
+            reminders won't arrive. On phones, reminders only show while the app is open.
+        </p>
+    </div>
+
     <div class="rem-status rem-status-@status.Kind.ToString().ToLowerInvariant()" role="status">
         <Icon Name="@(status.Kind is ReminderStatusKind.Paused ? "pause" : "clock")" Size="18" />
         <span>@StatusText(status, now)</span>
@@ -121,12 +130,16 @@
     </div>
 
     <div class="rem-note">
-        <strong>Good to know</strong>
-        <p>
-            Reminders only work while Tracker is open in a browser tab (a background tab is fine). They won't arrive
-            if Chrome is closed or your computer is asleep, and Windows Focus / Do Not Disturb can hide them.
-            Browsers slow down background tabs, so a reminder can be up to a minute late.
-        </p>
+        <strong>Tips for reliable reminders</strong>
+        <ul>
+            <li><strong>Pin the tab:</strong> right-click the Tracker tab and choose <em>Pin</em>, so it stays open and reopens with Chrome.</li>
+            <li>
+                <strong>Stop Chrome from sleeping the tab:</strong> Chrome Settings → Performance → Memory Saver →
+                <em>Always keep these sites active</em> → add <span class="nowrap">tracker.daxil.workers.dev</span>.
+            </li>
+            <li><strong>Allow notifications</strong> when Chrome asks, then press <em>Send test notification</em> above.</li>
+            <li>Windows Focus / Do Not Disturb can hide notifications, and a reminder can be up to a minute late in a background tab.</li>
+        </ul>
     </div>
 </section>
 
