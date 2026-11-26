@@ -42,6 +42,20 @@ To check a production build locally:
 dotnet publish src/Tracker/Tracker.csproj -c Release -o output
 ```
 
+## Feedback form (EmailJS)
+
+The Feedback page sends messages with EmailJS's REST API, straight from the browser.
+Set three IDs in [src/Tracker/wwwroot/appsettings.json](src/Tracker/wwwroot/appsettings.json):
+
+```json
+{ "Feedback": { "EmailJs": { "ServiceId": "service_…", "TemplateId": "template_…", "PublicKey": "…" } } }
+```
+
+These are public by design. The destination email address is set only in the EmailJS template.
+If any ID is empty, the page shows "not connected yet" and disables sending.
+
+Template variables: `{{feedback_type}}`, `{{message}}`, `{{from_name}}`, `{{reply_to}}`, `{{sent_at}}`, `{{app_url}}`.
+
 ## Features (Water)
 
 - Animated SVG bottle that fills toward your daily goal, with partial-bottle counts
@@ -51,6 +65,7 @@ dotnet publish src/Tracker/Tracker.csproj -c Release -o output
 - Suggested daily goal from sex, age, weight, exercise, heat, creatine, pregnancy/breastfeeding
   (~30 ml/kg plus add-ons, with minimums from EFSA reference intakes; shows its working; not medical advice)
 - Your data: download a backup file, restore one (merges, skips duplicates), delete all data
+- Feedback page: suggestions and bug reports emailed to the owner through EmailJS (no backend)
 - Reminders during office hours: interval, snooze, pause for today, stop at goal,
   Chrome notifications plus an in-app banner (only while the app is open in a tab)
 - Light and dark themes, responsive from phone to desktop

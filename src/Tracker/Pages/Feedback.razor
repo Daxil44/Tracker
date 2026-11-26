@@ -1,0 +1,204 @@
+@page "/feedback"
+@using System.Text.RegularExpressions
+@inject FeedbackService Sender
+@inject PreferencesService Preferences
+@inject NavigationManager Navigation
+
+<PageTitle>Feedback · Tracker</PageTitle>
+
+<div class="feedback-page">
+    <header class="page-header">
+        <p class="eyebrow"><Icon Name="message" Size="16" /> Feedback</p>
+        <h1>Got an idea or found a bug?</h1>
+        <p class="lede">Tell me what would make Tracker better. Every message is read.</p>
+    </header>
+
+    <section class="card feedback-card">
+        @if (!Sender.IsConfigured)
+        {
+            <div class="not-ready" role="status">
+                <Icon Name="alert" Size="20" />
+                <p>The feedback form isn't connected yet, so messages can't be sent right now.</p>
+            </div>
+        }
+
+        @if (_sent)
+        {
+            <div class="sent" role="status">
+                <span class="sent-icon"><Icon Name="check" Size="28" StrokeWidth="2.6" /></span>
+                <h2>Thanks for the feedback!</h2>
+                <p class="muted">Your message was sent@(string.IsNullOrWhiteSpace(_replyTo) ? "." : ". If a reply is needed, it'll go to the email you gave.")</p>
+                <button type="button" class="btn btn-ghost" @onclick="StartOver">Send another</button>
+            </div>
+        }
+        else
+        {
+            <form class="fb-form" @onsubmit="SendAsync" novalidate>
+                <div class="field">
+                    <span class="field-label" id="kind-label">What's it about?</span>
+                    <div class="chips" role="radiogroup" aria-labelledby="kind-label">
+                        @foreach (var (kind, label, icon) in Kinds)
+                        {
+                            <button type="button" role="radio" aria-checked="@(_kind == kind ? "true" : "false")"
+                                    class="chip @(_kind == kind ? "is-selected" : "")" @onclick="() => _kind = kind">
+                                <Icon Name="@icon" Size="16" /> @label
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="field-label" for="fb-message">Message</label>
+                    <textarea id="fb-message" class="textarea @(ShowMessageError ? "is-invalid" : "")" rows="6"
+                              maxlength="@FeedbackService.MaxMessageLength" placeholder="@Placeholder"
+                              @bind="_message" @bind:event="oninput" aria-describedby="fb-message-hint"></textarea>
+                    <p id="fb-message-hint" class="field-hint @(ShowMessageError ? "is-error" : "")">
+                        @if (ShowMessageError)
+                        {
+                            <span>Please write at least @FeedbackService.MinMessageLength characters.</span>
+                        }
+                        else
+                        {
+                            <span>@(_message?.Length ?? 0) / @FeedbackService.MaxMessageLength</span>
+                        }
+                    </p>
+                </div>
+
+                <div class="fb-row">
+                    <div class="field">
+                        <label class="field-label" for="fb-name">Name <span class="optional">(optional)</span></label>
+                        <div class="input-wrap">
+                            <input id="fb-name" type="text" autocomplete="name" maxlength="60" @bind="_name" @bind:event="oninput" />
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="fb-email">Email <span class="optional">(optional, for a reply)</span></label>
+                        <div class="input-wrap @(ShowEmailError ? "is-invalid" : "")">
+                            <input id="fb-email" type="email" autocomplete="email" maxlength="120" @bind="_replyTo" @bind:event="oninput"
+                                   aria-describedby="fb-email-hint" />
+                        </div>
+                        @if (ShowEmailError)
+                        {
+                            <p id="fb-email-hint" class="field-hint is-error">That email doesn't look right.</p>
+                        }
+                    </div>
+                </div>
+
+                @* Honeypot: hidden from people, often filled in by spam bots. *@
+                <div class="hp" aria-hidden="true">
+                    <label for="fb-website">Website</label>
+                    <input id="fb-website" type="text" tabindex="-1" autocomplete="off" @bind="_honeypot" />
+                </div>
+
+                <div class="fb-foot">
+                    <p class="small muted">
+                        Sent by email through EmailJS. Only what you type here is sent, plus the date.
+                        Your water data is never included.
+                    </p>
+                    <button type="submit" class="btn btn-primary" disabled="@(!CanSend)">
+                        @if (_sending)
+                        {
+                            <span class="spinner" aria-hidden="true"></span>
+                            <span>Sending…</span>
+                        }
+                        else
+                        {
+                            <Icon Name="send" Size="18" />
+                            <span>Send feedback</span>
+                        }
+                    </button>
+                </div>
+
+                @if (_error is not null)
+                {
+                    <p class="fb-error" role="alert">@_error</p>
+                }
+            </form>
+        }
+    </section>
+</div>
+
+@code {
+    private static readonly (FeedbackKind, string, string)[] Kinds =
+    [
+        (FeedbackKind.Suggestion, "Suggestion", "sparkle"),
+        (FeedbackKind.Bug, "Bug", "alert"),
+        (FeedbackKind.Other, "Other", "message"),
+    ];
+
+    private static readonly Regex EmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
+
+    private FeedbackKind _kind = FeedbackKind.Suggestion;
+    private string? _message;
+    private string? _name;
+    private string? _replyTo;
+    private string? _honeypot;
+    private bool _sending;
+    private bool _sent;
+    private string? _error;
+
+    private string Placeholder => _kind switch
+    {
+        FeedbackKind.Bug => "What happened, and what did you expect? Which page, phone or computer?",
+        FeedbackKind.Other => "Anything you'd like to say…",
+        _ => "e.g. Add a protein tracker, or a weekly summary…",
+    };
+
+    private string Trimmed => _message?.Trim() ?? "";
+    private bool MessageValid => Trimmed.Length >= FeedbackService.MinMessageLength;
+    private bool EmailValid => string.IsNullOrWhiteSpace(_replyTo) || EmailPattern.IsMatch(_replyTo.Trim());
+    private bool ShowMessageError => _triedSend && !MessageValid;
+    private bool ShowEmailError => !string.IsNullOrWhiteSpace(_replyTo) && !EmailValid;
+    private bool CanSend => Sender.IsConfigured && !_sending && MessageValid && EmailValid;
+
+    private bool _triedSend;
+
+    protected override void OnInitialized() => _name = Preferences.Current.DisplayName;
+
+    private async Task SendAsync()
+    {
+        _triedSend = true;
+        _error = null;
+        if (!CanSend)
+        {
+            return;
+        }
+
+        // A filled honeypot means a bot: pretend it worked and send nothing.
+        if (!string.IsNullOrEmpty(_honeypot))
+        {
+            _sent = true;
+            return;
+        }
+
+        _sending = true;
+        var result = await Sender.SendAsync(
+            new FeedbackMessage(_kind, Trimmed, _name?.Trim(), string.IsNullOrWhiteSpace(_replyTo) ? null : _replyTo.Trim()),
+            Navigation.BaseUri);
+        _sending = false;
+
+        switch (result)
+        {
+            case FeedbackResult.Sent:
+                _sent = true;
+                break;
+            case FeedbackResult.TooSoon:
+                _error = $"You just sent one. Please wait {Sender.SecondsUntilNextSend} seconds before sending another.";
+                break;
+            case FeedbackResult.NotConfigured:
+                _error = "The feedback form isn't connected yet.";
+                break;
+            default:
+                _error = "Couldn't send right now. Check your internet connection and try again. Your message is still here.";
+                break;
+        }
+    }
+
+    private void StartOver()
+    {
+        _sent = false;
+        _message = null;
+        _triedSend = false;
+        _kind = FeedbackKind.Suggestion;
+    }
+}
