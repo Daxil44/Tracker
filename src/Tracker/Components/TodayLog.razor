@@ -1,0 +1,39 @@
+@inherits HydrationComponentBase
+
+@{
+    var entries = Tracking.TodayEntries.OrderByDescending(e => e.LoggedAt).ToList();
+}
+
+<div class="card-head">
+    <h2 class="card-title">Today's log</h2>
+    <span class="muted small">@entries.Count @(entries.Count == 1 ? "entry" : "entries")</span>
+</div>
+
+@if (entries.Count == 0)
+{
+    <div class="empty">
+        <span class="empty-icon"><Icon Name="droplet" Size="26" /></span>
+        <p>No water logged yet today.</p>
+        <p class="muted small">Use the quick-add buttons to log your first drink.</p>
+    </div>
+}
+else
+{
+    <ul class="log">
+        @foreach (var entry in entries)
+        {
+            <li class="log-item" @key="entry.Id">
+                <span class="log-icon"><Icon Name="@EntryLabels.IconFor(entry.Label)" Size="18" /></span>
+                <span class="log-main">
+                    <span class="log-amount">+@Fmt(entry.AmountMl)</span>
+                    <span class="log-meta">@(entry.Label ?? EntryLabels.Custom) · @entry.LoggedAt.ToLocalTime().ToString("t")</span>
+                </span>
+                <button type="button" class="icon-btn" title="Remove entry"
+                        aria-label="@($"Remove {Fmt(entry.AmountMl)} logged at {entry.LoggedAt.ToLocalTime():t}")"
+                        @onclick="() => Tracking.RemoveAsync(Tracking.Today, entry.Id)">
+                    <Icon Name="trash" Size="18" />
+                </button>
+            </li>
+        }
+    </ul>
+}

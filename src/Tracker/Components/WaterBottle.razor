@@ -1,0 +1,225 @@
+@implements IDisposable
+
+<div class="bottle-wrap @(Progress.GoalReached ? "is-complete" : "") @(_celebrating ? "is-celebrating" : "")">
+    <div class="bottle-stage">
+        <svg class="bottle" viewBox="-46 0 290 404" role="img" aria-label="@AriaLabel">
+            <defs>
+                <clipPath id="@_clipId">
+                    <path d="@BodyPath" />
+                </clipPath>
+                <linearGradient id="@_waterId" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" class="stop-water-top" />
+                    <stop offset="1" class="stop-water-bottom" />
+                </linearGradient>
+                <linearGradient id="@_glassId" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" class="stop-glass-edge" />
+                    <stop offset="0.45" class="stop-glass-mid" />
+                    <stop offset="1" class="stop-glass-edge" />
+                </linearGradient>
+            </defs>
+
+            @* Cap *@
+            <rect class="cap" x="70" y="16" width="60" height="30" rx="9" />
+            <rect class="cap-ring" x="74" y="44" width="52" height="9" rx="3" />
+
+            @* Glass body *@
+            <path class="glass" d="@BodyPath" fill="url(#@_glassId)" />
+
+            @* Water: one group moved vertically; waves and bubbles live inside it *@
+            <g clip-path="url(#@_clipId)">
+                <g class="water" style="transform: translateY(@(Css.Num(LevelY))px)">
+                    <g transform="translate(0 -6)">
+                        <path class="wave wave-back" d="@WavePath" />
+                    </g>
+                    <path class="wave wave-front" d="@WavePath" fill="url(#@_waterId)" />
+                    @if (Progress.IntakeMl > 0)
+                    {
+                        @foreach (var b in Bubbles)
+                        {
+                            <circle class="bubble" cx="@b.X" cy="230" r="@Css.Num(b.R)"
+                                    style="--delay: @(Css.Num(b.Delay))s; --dur: @(Css.Num(b.Duration))s" />
+                        }
+                    }
+                </g>
+            </g>
+
+            @* Bottle-boundary ticks (one per bottle of the user's capacity) *@
+            @foreach (var tick in Ticks)
+            {
+                @* Wrapped in <g> so Razor treats <text> as SVG, not its own <text> directive. *@
+                <g>
+                    <line class="tick" x1="148" x2="163" y1="@Css.Num(tick.Y)" y2="@Css.Num(tick.Y)" />
+                    <text class="tick-label" x="176" y="@Css.Num(tick.Y + 4)">@(tick.ShowLabel ? tick.Bottle.ToString(CultureInfo.CurrentCulture) : "")</text>
+                </g>
+            }
+            <line class="tick tick-goal" x1="124" x2="163" y1="@Top" y2="@Top" />
+            <text class="tick-label tick-goal-label" x="176" y="@(Top + 4)">Goal</text>
+
+            @* Glass shine + outline drawn above the water *@
+            <path class="shine" d="M50 160 Q46 250 50 345" />
+            <path class="shine shine-soft" d="M58 122 Q66 112 80 106" />
+            <path class="outline" d="@BodyPath" />
+
+            @* Current level marker *@
+            <g class="level" style="transform: translateY(@(Css.Num(MarkerY))px)">
+                <line class="level-line" x1="12" x2="30" y1="0" y2="0" />
+                <circle class="level-dot" cx="30" cy="0" r="3.5" />
+                <text class="level-text" x="4" y="5" text-anchor="end">@Progress.PercentDisplay%</text>
+            </g>
+        </svg>
+
+        @if (_celebrating)
+        {
+            <div class="burst" aria-hidden="true">
+                <span class="ring"></span>
+                @for (var i = 0; i < 14; i++)
+                {
+                    <span class="drop" style="--a: @(i * 360 / 14)deg; --d: @(110 + (i % 3) * 22)px; --t: @(Css.Num(i * 0.03))s"></span>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="bottle-meta">
+        <div class="mini-row" aria-hidden="true">
+            @for (var i = 0; i < MiniCount; i++)
+            {
+                var fill = Math.Clamp(Progress.BottlesCompleted - i, 0, 1);
+                <span class="mini @(fill >= 1 ? "is-full" : "")">
+                    <span class="mini-neck"></span>
+                    <span class="mini-body"><span class="mini-fill" style="height: @(Css.Num(fill * 100))%"></span></span>
+                </span>
+            }
+            @if (MiniOverflow > 0)
+            {
+                <span class="mini-more">+@MiniOverflow</span>
+            }
+        </div>
+        <p class="bottle-count">
+            <strong>@VolumeFormat.Bottles(Progress.BottlesCompleted)</strong> of @VolumeFormat.Bottles(Progress.BottlesRequired) bottles
+        </p>
+        <p class="bottle-capacity">@VolumeFormat.Format(Progress.BottleCapacityMl, Unit) bottle · marks show each bottle</p>
+    </div>
+
+    @if (_celebrating)
+    {
+        <div class="celebrate-banner" role="status">Daily goal reached!</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public HydrationProgress Progress { get; set; } = default!;
+    [Parameter] public VolumeUnit Unit { get; set; }
+
+    // Geometry (SVG user units). The water surface sits at Bottom when empty and Top when the goal is met.
+    private const string BodyPath =
+        "M78 52 L78 78 C78 100 34 108 34 140 L34 360 Q34 384 58 384 L142 384 Q166 384 166 360 L166 140 C166 108 122 100 122 78 L122 52 Z";
+    private const double Bottom = 384;
+    private const double Top = 92;
+    private const double FillHeight = Bottom - Top;
+    private const int MaxMini = 16;
+
+    private static readonly string WavePath = BuildWave();
+
+    private static readonly (int X, double R, double Delay, double Duration)[] Bubbles =
+    [
+        (60, 3, 0, 4.2), (92, 2, 1.3, 3.6), (120, 3.5, 2.1, 5), (142, 2, 0.6, 3.9),
+        (78, 2.5, 3, 4.6), (106, 1.8, 1.8, 3.2), (132, 2.6, 3.6, 4.4),
+    ];
+
+    private readonly string _clipId = UniqueId("clip");
+    private readonly string _waterId = UniqueId("water");
+    private readonly string _glassId = UniqueId("glass");
+
+    private bool? _wasReached;
+    private bool _celebrating;
+    private CancellationTokenSource? _celebrationCts;
+
+    private double Fill => Math.Clamp(Progress.Fraction, 0, 1);
+
+    // Empty bottle: push the surface (and its waves) fully below the base.
+    private double LevelY => Progress.IntakeMl <= 0 ? Bottom + 12 : Bottom - Fill * FillHeight;
+
+    private double MarkerY => Bottom - Fill * FillHeight;
+
+    private int MiniTotal => (int)Math.Ceiling(Math.Max(Progress.BottlesRequired, Progress.BottlesCompleted) - 1e-9);
+    private int MiniCount => Math.Min(MiniTotal, MaxMini);
+    private int MiniOverflow => Math.Max(0, MiniTotal - MaxMini);
+
+    private string AriaLabel =>
+        $"Water bottle {Progress.PercentDisplay}% full: {VolumeFormat.Format(Progress.IntakeMl, Unit)} of " +
+        $"{VolumeFormat.Format(Progress.GoalMl, Unit)}, {VolumeFormat.Bottles(Progress.BottlesCompleted)} of " +
+        $"{VolumeFormat.Bottles(Progress.BottlesRequired)} bottles.";
+
+    private IEnumerable<(double Y, int Bottle, bool ShowLabel)> Ticks
+    {
+        get
+        {
+            if (Progress.GoalMl <= 0 || Progress.BottleCapacityMl <= 0)
+            {
+                yield break;
+            }
+
+            // Boundaries strictly below the goal; thin out labels when there are many bottles.
+            var count = (int)Math.Ceiling((double)Progress.GoalMl / Progress.BottleCapacityMl) - 1;
+            var labelEvery = Math.Max(1, (int)Math.Ceiling(count / 8.0));
+            for (var i = 1; i <= count; i++)
+            {
+                var y = Bottom - (double)i * Progress.BottleCapacityMl / Progress.GoalMl * FillHeight;
+                if (Top + 10 < y)
+                {
+                    yield return (y, i, i % labelEvery == 0);
+                }
+            }
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        var reached = Progress.GoalReached;
+        if (_wasReached == false && reached)
+        {
+            _ = CelebrateAsync();
+        }
+
+        _wasReached = reached;
+    }
+
+    private async Task CelebrateAsync()
+    {
+        _celebrationCts?.Cancel();
+        var cts = _celebrationCts = new CancellationTokenSource();
+        _celebrating = true;
+        try
+        {
+            await Task.Delay(2800, cts.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        _celebrating = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string BuildWave()
+    {
+        // Smooth sine-like wave 400 units wide (period 100), filled down well past the bottle base.
+        var path = new System.Text.StringBuilder("M0 0 Q25 -7 50 0");
+        for (var x = 100; x <= 400; x += 50)
+        {
+            path.Append(" T").Append(x).Append(" 0");
+        }
+
+        return path.Append(" V440 H0 Z").ToString();
+    }
+
+    private static string UniqueId(string prefix) => $"{prefix}-{Guid.NewGuid():N}"[..(prefix.Length + 9)];
+
+    public void Dispose()
+    {
+        _celebrationCts?.Cancel();
+        _celebrationCts?.Dispose();
+    }
+}

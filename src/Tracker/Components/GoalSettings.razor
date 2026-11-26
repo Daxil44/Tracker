@@ -1,0 +1,327 @@
+@inject PreferencesService Preferences
+
+<form class="goal-form" @onsubmit="SaveAsync" novalidate>
+    <section class="card setting-card name-card" aria-labelledby="name-heading">
+        <div class="card-head">
+            <h2 id="name-heading" class="card-title">Your name</h2>
+            <span class="muted small">Optional, used in your greeting</span>
+        </div>
+        <div class="name-row">
+            <div class="input-wrap">
+                <input id="display-name" type="text" autocomplete="given-name" maxlength="@UserPreferences.MaxNameLength"
+                       placeholder="e.g. Alex" aria-labelledby="name-heading"
+                       @bind="_name" @bind:event="oninput" @bind:after="ClearStatus" />
+            </div>
+            <p class="name-preview muted">
+                Preview: <strong>Good morning@(UserPreferences.CleanName(_name) is { } n ? $", {n}" : "")</strong>
+            </p>
+        </div>
+    </section>
+
+    <section class="card setting-card bottle-settings" aria-labelledby="bottle-heading">
+        <div class="card-head">
+            <h2 id="bottle-heading" class="card-title">Bottle size</h2>
+            <span class="muted small">The bottle you usually drink from</span>
+        </div>
+
+        <div class="chips" role="radiogroup" aria-labelledby="bottle-heading">
+            @foreach (var size in BottlePresets)
+            {
+                var selected = !_customBottle && _bottleMl == size;
+                <button type="button" role="radio" aria-checked="@(selected ? "true" : "false")"
+                        class="chip @(selected ? "is-selected" : "")" @onclick="() => SelectBottle(size)">
+                    @VolumeFormat.Format(size, _unit)
+                </button>
+            }
+            <button type="button" role="radio" aria-checked="@(_customBottle ? "true" : "false")"
+                    class="chip @(_customBottle ? "is-selected" : "")" @onclick="SelectCustomBottle">
+                Custom
+            </button>
+        </div>
+
+        @if (_customBottle)
+        {
+            <div class="field custom-bottle">
+                <label for="bottle-amount" class="field-label">Custom bottle size</label>
+                <div class="input-wrap @(_customValid ? "" : "is-invalid")">
+                    <input id="bottle-amount" type="text" inputmode="decimal" autocomplete="off"
+                           @bind="_customText" @bind:event="oninput" @bind:after="OnCustomBottleChanged"
+                           aria-describedby="bottle-hint" aria-invalid="@(_customValid ? "false" : "true")" />
+                    <span class="input-suffix">@VolumeFormat.Suffix(_unit)</span>
+                </div>
+                <p id="bottle-hint" class="field-hint @(_customValid ? "" : "is-error")">
+                    Between @VolumeFormat.Format(UserPreferences.MinBottleMl, _unit) and @VolumeFormat.Format(UserPreferences.MaxBottleMl, _unit).
+                </p>
+            </div>
+        }
+    </section>
+
+    <section class="card setting-card goal-settings" aria-labelledby="goal-heading">
+        <div class="card-head">
+            <h2 id="goal-heading" class="card-title">Daily goal</h2>
+            <span class="muted small">Set it in bottles or as an amount</span>
+        </div>
+
+        <div class="goal-grid">
+            <div class="field">
+                <span class="field-label" id="bottles-label">In bottles</span>
+                <div class="stepper" role="group" aria-labelledby="bottles-label">
+                    <button type="button" class="step-btn" aria-label="Half a bottle less"
+                            disabled="@(!CanStep(-1))" @onclick="() => StepBottles(-1)">
+                        <Icon Name="minus" Size="20" />
+                    </button>
+                    <span class="step-value" aria-live="polite">
+                        <strong>@(InputsValid ? VolumeFormat.Bottles(DraftBottles) : "–")</strong>
+                        <small>@(DraftBottles == 1 ? "bottle" : "bottles")</small>
+                    </span>
+                    <button type="button" class="step-btn" aria-label="Half a bottle more"
+                            disabled="@(!CanStep(1))" @onclick="() => StepBottles(1)">
+                        <Icon Name="plus" Size="20" />
+                    </button>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="goal-amount" class="field-label">Or as an amount</label>
+                <div class="input-wrap @(_goalValid ? "" : "is-invalid")">
+                    <input id="goal-amount" type="text" inputmode="decimal" autocomplete="off"
+                           @bind="_goalText" @bind:event="oninput" @bind:after="OnGoalTextChanged"
+                           aria-describedby="goal-hint" aria-invalid="@(_goalValid ? "false" : "true")" />
+                    <span class="input-suffix">@VolumeFormat.Suffix(_unit)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="chips goal-presets" aria-label="Common goals">
+            @foreach (var preset in GoalPresets)
+            {
+                <button type="button" class="chip chip-soft @(_goalValid && _goalMl == preset ? "is-selected" : "")"
+                        @onclick="() => SetGoal(preset)">
+                    @VolumeFormat.Format(preset, _unit)
+                </button>
+            }
+        </div>
+
+        <p id="goal-hint" class="field-hint @(_goalValid ? "" : "is-error")">
+            Between @VolumeFormat.Format(UserPreferences.MinGoalMl, _unit) and @VolumeFormat.Format(UserPreferences.MaxGoalMl, _unit).
+        </p>
+    </section>
+
+    <section class="card setting-card unit-settings" aria-labelledby="unit-heading">
+        <div class="card-head">
+            <h2 id="unit-heading" class="card-title">Units</h2>
+        </div>
+        <div class="segmented" role="radiogroup" aria-labelledby="unit-heading">
+            <button type="button" role="radio" aria-checked="@(_unit == VolumeUnit.Milliliters ? "true" : "false")"
+                    class="@(_unit == VolumeUnit.Milliliters ? "is-selected" : "")" @onclick="() => SetUnit(VolumeUnit.Milliliters)">
+                Milliliters (ml)
+            </button>
+            <button type="button" role="radio" aria-checked="@(_unit == VolumeUnit.Liters ? "true" : "false")"
+                    class="@(_unit == VolumeUnit.Liters ? "is-selected" : "")" @onclick="() => SetUnit(VolumeUnit.Liters)">
+                Liters (L)
+            </button>
+        </div>
+    </section>
+
+    <section class="card summary-card" aria-live="polite">
+        @if (InputsValid)
+        {
+            <div class="summary-bottles" aria-hidden="true">
+                @for (var i = 0; i < Math.Min(MiniCount, 16); i++)
+                {
+                    var fill = Math.Clamp(DraftBottles - i, 0, 1);
+                    <span class="mini"><span class="mini-fill" style="height: @(Css.Num(fill * 100))%"></span></span>
+                }
+            </div>
+            <p class="summary-text">
+                Your daily goal: <strong>@VolumeFormat.Format(_goalMl, _unit)</strong>, which is
+                <strong>@VolumeFormat.Bottles(DraftBottles) @(DraftBottles == 1 ? "bottle" : "bottles")</strong>
+                of @VolumeFormat.Format(_bottleMl, _unit).
+            </p>
+        }
+        else
+        {
+            <p class="summary-text muted">Fix the highlighted field to see your goal.</p>
+        }
+
+        <div class="summary-actions">
+            <span class="status @_statusKind" role="status">@_status</span>
+            <button type="button" class="btn btn-ghost" disabled="@(!IsDirty)" @onclick="Reset">Reset</button>
+            <button type="submit" class="btn btn-primary" disabled="@(!InputsValid || !IsDirty)">
+                <Icon Name="check" Size="18" /> Save
+            </button>
+        </div>
+    </section>
+</form>
+
+@code {
+    private static readonly int[] BottlePresets = [350, 500, 600, 750, 1000];
+    private static readonly int[] GoalPresets = [1800, 2400, 3000];
+
+    private string? _name;
+    private VolumeUnit _unit;
+    private int _bottleMl;
+    private bool _customBottle;
+    private string? _customText;
+    private bool _customValid = true;
+
+    private int _goalMl;
+    private string? _goalText;
+    private bool _goalValid = true;
+
+    private string? _status;
+    private string _statusKind = "";
+
+    private bool InputsValid => _goalValid && (!_customBottle || _customValid);
+
+    private double DraftBottles => _bottleMl <= 0 ? 0 : (double)_goalMl / _bottleMl;
+
+    private int MiniCount => (int)Math.Ceiling(DraftBottles - 1e-9);
+
+    private bool IsDirty
+    {
+        get
+        {
+            var current = Preferences.Current;
+            return _goalMl != current.DailyGoalMl || _bottleMl != current.BottleCapacityMl || _unit != current.Unit
+                   || UserPreferences.CleanName(_name) != current.DisplayName
+                   || !InputsValid;
+        }
+    }
+
+    protected override void OnInitialized() => LoadFrom(Preferences.Current);
+
+    private void LoadFrom(UserPreferences prefs)
+    {
+        _name = prefs.DisplayName;
+        _unit = prefs.Unit;
+        _bottleMl = prefs.BottleCapacityMl;
+        _customBottle = !BottlePresets.Contains(_bottleMl);
+        _customText = VolumeFormat.ToInput(_bottleMl, _unit);
+        _customValid = true;
+        _goalMl = prefs.DailyGoalMl;
+        _goalText = VolumeFormat.ToInput(_goalMl, _unit);
+        _goalValid = true;
+    }
+
+    private void SelectBottle(int ml)
+    {
+        _customBottle = false;
+        _customValid = true;
+        _bottleMl = ml;
+        _customText = VolumeFormat.ToInput(ml, _unit);
+        ClearStatus();
+    }
+
+    private void SelectCustomBottle()
+    {
+        _customBottle = true;
+        _customText = VolumeFormat.ToInput(_bottleMl, _unit);
+        _customValid = true;
+        ClearStatus();
+    }
+
+    private void OnCustomBottleChanged()
+    {
+        _customValid = VolumeFormat.TryParse(_customText, _unit, out var ml)
+                       && ml is >= UserPreferences.MinBottleMl and <= UserPreferences.MaxBottleMl;
+        if (_customValid)
+        {
+            _bottleMl = ml;
+        }
+
+        ClearStatus();
+    }
+
+    private void OnGoalTextChanged()
+    {
+        _goalValid = VolumeFormat.TryParse(_goalText, _unit, out var ml)
+                     && ml is >= UserPreferences.MinGoalMl and <= UserPreferences.MaxGoalMl;
+        if (_goalValid)
+        {
+            _goalMl = ml;
+        }
+
+        ClearStatus();
+    }
+
+    private void SetGoal(int ml)
+    {
+        _goalMl = ml;
+        _goalText = VolumeFormat.ToInput(ml, _unit);
+        _goalValid = true;
+        ClearStatus();
+    }
+
+    /// <summary>Moves the goal to the next half-bottle step (e.g. 2.4 → 2.5 → 3 when going up).</summary>
+    private int? NextStep(int direction)
+    {
+        if (!InputsValid || _bottleMl <= 0)
+        {
+            return null;
+        }
+
+        var halves = DraftBottles * 2;
+        var nextBottles = direction > 0
+            ? (Math.Floor(halves + 1e-9) + 1) / 2
+            : (Math.Ceiling(halves - 1e-9) - 1) / 2;
+        var ml = (int)Math.Round(nextBottles * _bottleMl);
+
+        return nextBottles > 0 && ml is >= UserPreferences.MinGoalMl and <= UserPreferences.MaxGoalMl ? ml : null;
+    }
+
+    private bool CanStep(int direction) => NextStep(direction) is not null;
+
+    private void StepBottles(int direction)
+    {
+        if (NextStep(direction) is { } ml)
+        {
+            SetGoal(ml);
+        }
+    }
+
+    private void SetUnit(VolumeUnit unit)
+    {
+        _unit = unit;
+        if (_goalValid)
+        {
+            _goalText = VolumeFormat.ToInput(_goalMl, unit);
+        }
+
+        if (_customValid)
+        {
+            _customText = VolumeFormat.ToInput(_bottleMl, unit);
+        }
+
+        ClearStatus();
+    }
+
+    private void Reset()
+    {
+        LoadFrom(Preferences.Current);
+        ClearStatus();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!InputsValid)
+        {
+            return;
+        }
+
+        var saved = await Preferences.UpdateAsync(p => p with
+        {
+            DisplayName = _name,
+            DailyGoalMl = _goalMl,
+            BottleCapacityMl = _bottleMl,
+            Unit = _unit,
+        });
+
+        _name = Preferences.Current.DisplayName;
+        (_status, _statusKind) = saved
+            ? ("Saved. Your dashboard is updated.", "is-ok")
+            : ("Applied, but this browser blocked saving. It may reset on refresh.", "is-warn");
+    }
+
+    private void ClearStatus() => _status = null;
+}

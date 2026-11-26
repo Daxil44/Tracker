@@ -1,0 +1,167 @@
+.goal-form {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+        "name    name"
+        "bottle  goal"
+        "unit    goal"
+        "summary summary";
+    align-items: start;
+}
+
+.name-card { grid-area: name; }
+.bottle-settings { grid-area: bottle; }
+.goal-settings { grid-area: goal; }
+.unit-settings { grid-area: unit; }
+.summary-card { grid-area: summary; }
+
+.name-row {
+    display: grid;
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    align-items: center;
+    gap: 16px 24px;
+}
+
+.name-row .input-wrap input { padding-right: 16px; }
+
+.name-preview strong {
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.setting-card { display: grid; gap: 16px; }
+.setting-card .card-head { margin-bottom: 0; flex-wrap: wrap; }
+
+/* ---- Fields ---- */
+
+.field { display: grid; gap: 8px; align-content: start; }
+
+.goal-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+}
+
+.stepper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 48px;
+    padding: 4px;
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
+    background: var(--surface-sunken);
+}
+
+.step-btn {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 38px;
+    border: 0;
+    border-radius: 11px;
+    background: var(--surface-strong);
+    color: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    transition: transform 0.15s var(--ease-out), opacity 0.2s;
+}
+
+.step-btn:active:not(:disabled) { transform: scale(0.92); }
+.step-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.step-value { display: flex; align-items: baseline; gap: 6px; }
+.step-value strong { font-size: 1.35rem; font-weight: 800; }
+.step-value small { color: var(--text-muted); font-weight: 600; }
+
+/* ---- Units ---- */
+
+.segmented {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 14px;
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+}
+
+.segmented button {
+    min-height: 40px;
+    border: 0;
+    border-radius: 11px;
+    background: transparent;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.segmented button.is-selected {
+    color: var(--text);
+    background: var(--surface-strong);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* ---- Summary ---- */
+
+.summary-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 20px;
+}
+
+.summary-bottles { display: flex; flex-wrap: wrap; gap: 6px; max-width: 220px; }
+
+.mini {
+    position: relative;
+    width: 16px;
+    height: 28px;
+    overflow: hidden;
+    border: 2px solid var(--bottle-stroke);
+    border-radius: 5px 5px 6px 6px;
+    background: var(--surface-sunken);
+}
+
+.mini-fill {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(var(--water-top), var(--water-bottom));
+    transition: height 0.5s var(--ease-out);
+}
+
+.summary-text { font-size: 1rem; color: var(--text-muted); }
+.summary-text strong { color: var(--text); }
+
+.summary-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+
+.status { font-size: 0.8125rem; font-weight: 700; }
+.status.is-ok { color: var(--success); }
+.status.is-warn { color: var(--warning); }
+
+@media (max-width: 960px) {
+    .goal-form {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "name" "bottle" "goal" "unit" "summary";
+    }
+
+    .name-row { grid-template-columns: minmax(0, 1fr); }
+
+    .summary-card { grid-template-columns: minmax(0, 1fr); }
+    .summary-actions { justify-content: stretch; }
+    .summary-actions .btn { flex: 1; }
+    .status { flex-basis: 100%; }
+}
+
+@media (max-width: 760px) {
+    .goal-form { gap: 14px; }
+}
+
+@media (max-width: 460px) {
+    .goal-grid { grid-template-columns: minmax(0, 1fr); }
+}

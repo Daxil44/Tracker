@@ -1,0 +1,132 @@
+@inherits HydrationComponentBase
+
+<div class="tracker">
+    <div class="card-head">
+        <h2 class="card-title">Log water</h2>
+        <span class="muted small">Bottle size @Fmt(Capacity)</span>
+    </div>
+
+    <div class="quick-grid">
+        <button type="button" class="quick quick-primary" @onclick="() => AddAsync(Capacity, EntryLabels.FullBottle)">
+            <span class="quick-icon"><Icon Name="bottle" Size="22" /></span>
+            <span class="quick-text">
+                <span class="quick-title">Full bottle</span>
+                <span class="quick-amount">+@Fmt(Capacity)</span>
+            </span>
+        </button>
+        <button type="button" class="quick" @onclick="() => AddAsync(HalfCapacity, EntryLabels.HalfBottle)">
+            <span class="quick-icon"><Icon Name="half" Size="22" /></span>
+            <span class="quick-text">
+                <span class="quick-title">Half bottle</span>
+                <span class="quick-amount">+@Fmt(HalfCapacity)</span>
+            </span>
+        </button>
+        <button type="button" class="quick" @onclick="() => AddAsync(GlassMl, EntryLabels.Glass)">
+            <span class="quick-icon"><Icon Name="glass" Size="22" /></span>
+            <span class="quick-text">
+                <span class="quick-title">Glass</span>
+                <span class="quick-amount">+@Fmt(GlassMl)</span>
+            </span>
+        </button>
+    </div>
+
+    <form class="custom" @onsubmit="AddCustomAsync" novalidate>
+        <label for="custom-amount" class="field-label">Custom amount</label>
+        <div class="input-row">
+            <div class="input-wrap @(ShowError ? "is-invalid" : "")">
+                <input id="custom-amount" type="text" inputmode="decimal" autocomplete="off"
+                       placeholder="@(Unit == VolumeUnit.Liters ? "e.g. 0.33" : "e.g. 330")"
+                       @bind="_custom" @bind:event="oninput"
+                       aria-describedby="custom-hint" aria-invalid="@(ShowError ? "true" : "false")" />
+                <span class="input-suffix">@VolumeFormat.Suffix(Unit)</span>
+            </div>
+            <button type="submit" class="btn btn-primary" disabled="@(!CustomValid)">
+                <Icon Name="plus" Size="18" /> Add
+            </button>
+        </div>
+        <p id="custom-hint" class="field-hint @(ShowError ? "is-error" : "")">
+            @(ShowError
+                ? $"Enter an amount between {Fmt(1)} and {Fmt(WaterTrackingService.MaxEntryMl)}."
+                : $"Up to {Fmt(WaterTrackingService.MaxEntryMl)} per entry.")
+        </p>
+    </form>
+
+    <div class="tracker-foot">
+        <button type="button" class="btn btn-ghost" disabled="@(LastEntry is null)" @onclick="UndoAsync">
+            <Icon Name="undo" Size="18" />
+            @(LastEntry is null ? "Undo last entry" : $"Undo +{Fmt(LastEntry.AmountMl)}")
+        </button>
+        <div class="toast-slot" role="status" aria-live="polite">
+            @if (_toast is not null)
+            {
+                <span class="toast toast-@_toastKind" @key="_toastId">@_toast</span>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private const int GlassMl = 250;
+
+    private string? _custom;
+    private string? _toast;
+    private string _toastKind = "ok";
+    private int _toastId;
+
+    private int Capacity => Preferences.Current.BottleCapacityMl;
+    private int HalfCapacity => (int)Math.Round(Capacity / 2.0, MidpointRounding.AwayFromZero);
+
+    private WaterEntry? LastEntry => Tracking.TodayEntries.MaxBy(e => e.LoggedAt);
+
+    private bool CustomParsed(out int ml) =>
+        VolumeFormat.TryParse(_custom, Unit, out ml) && ml <= WaterTrackingService.MaxEntryMl;
+
+    private bool CustomValid => CustomParsed(out _);
+    private bool ShowError => !string.IsNullOrWhiteSpace(_custom) && !CustomValid;
+
+    private async Task AddAsync(int ml, string label)
+    {
+        var saved = await Tracking.AddAsync(ml, label);
+        ShowToast(saved
+            ? ($"+{Fmt(ml)} logged", "ok")
+            : ("Logged, but this browser blocked saving. It may be lost on refresh.", "warn"));
+    }
+
+    private async Task AddCustomAsync()
+    {
+        if (!CustomParsed(out var ml))
+        {
+            return;
+        }
+
+        await AddAsync(ml, EntryLabels.Custom);
+        _custom = null;
+    }
+
+    private async Task UndoAsync()
+    {
+        var removed = await Tracking.UndoLastAsync();
+        if (removed is not null)
+        {
+            ShowToast(($"Removed +{Fmt(removed.AmountMl)}", "info"));
+        }
+    }
+
+    private void ShowToast((string Message, string Kind) toast)
+    {
+        var id = ++_toastId;
+        _toast = toast.Message;
+        _toastKind = toast.Kind;
+        _ = HideToastLaterAsync(id);
+    }
+
+    private async Task HideToastLaterAsync(int id)
+    {
+        await Task.Delay(2600);
+        if (id == _toastId)
+        {
+            _toast = null;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+}

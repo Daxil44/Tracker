@@ -1,0 +1,131 @@
+@page "/"
+@inherits HydrationComponentBase
+@inject TimeProvider Clock
+
+<PageTitle>Water · Tracker</PageTitle>
+
+@{
+    var progress = Tracking.TodayProgress;
+}
+
+<div class="dashboard">
+    <header class="dash-header">
+        <p class="eyebrow"><Icon Name="droplet" Size="16" /> Water · @_now.ToString("dddd, MMMM d")</p>
+        <h1>@Greeting</h1>
+        <p class="lede">@Lede(progress)</p>
+        <ReminderBanner />
+    </header>
+
+    <section class="card bottle-card" aria-labelledby="progress-heading">
+        <div class="bottle-card-head">
+            <div>
+                <h2 id="progress-heading" class="card-title">Daily progress</h2>
+                <p class="big-percent">@progress.PercentDisplay<span>%</span></p>
+                <p class="muted">@Fmt(progress.IntakeMl) of @Fmt(progress.GoalMl)</p>
+                <a class="edit-link" href="settings"><Icon Name="edit" Size="14" /> Change goal or bottle</a>
+            </div>
+            @if (progress.GoalReached)
+            {
+                <span class="pill pill-success"><Icon Name="check" Size="16" /> Goal reached</span>
+            }
+            else
+            {
+                <span class="pill"><Icon Name="target" Size="16" /> @Fmt(progress.RemainingMl) to go</span>
+            }
+        </div>
+        <WaterBottle Progress="progress" Unit="Unit" />
+    </section>
+
+    <section class="card tracker-card">
+        <WaterTracker />
+    </section>
+
+    <section class="card stats-card">
+        <ProgressStats Progress="progress" Unit="Unit" />
+    </section>
+
+    <section class="card log-card">
+        <TodayLog />
+    </section>
+
+    <section class="card week-card">
+        <WeekStrip />
+    </section>
+
+    <p class="disclaimer">
+        Your daily goal is a personal target you choose, not medical advice.
+        Data is stored only in this browser on this device.
+    </p>
+</div>
+
+@code {
+    private readonly CancellationTokenSource _cts = new();
+    private DateTimeOffset _now;
+
+    private string Greeting
+    {
+        get
+        {
+            var greeting = _now.Hour switch
+            {
+                < 5 => "Good evening",
+                < 12 => "Good morning",
+                < 17 => "Good afternoon",
+                _ => "Good evening",
+            };
+
+            return Preferences.Current.DisplayName is { } name ? $"{greeting}, {name}" : greeting;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _now = Clock.GetLocalNow();
+        _ = TickAsync();
+    }
+
+    private string Lede(HydrationProgress p)
+    {
+        if (p.GoalReached)
+        {
+            return "You've reached today's goal. Nicely done.";
+        }
+
+        if (p.IntakeMl == 0)
+        {
+            return "Start your day with a glass of water.";
+        }
+
+        var bottles = VolumeFormat.Bottles(p.BottlesRemaining);
+        var noun = p.BottlesRemaining == 1 ? "bottle" : "bottles";
+        return $"{bottles} {noun} ({Fmt(p.RemainingMl)}) left to reach your goal.";
+    }
+
+    // Keeps the greeting/date current and rolls over to a new day at midnight while the tab is open.
+    private async Task TickAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_cts.Token))
+            {
+                _now = Clock.GetLocalNow();
+                if (!Tracking.CheckForNewDay())
+                {
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    public override void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+        base.Dispose();
+    }
+}

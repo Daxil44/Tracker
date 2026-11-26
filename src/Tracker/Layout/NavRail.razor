@@ -1,0 +1,26 @@
+@inject ThemeService Theme
+
+<nav class="rail" aria-label="Main">
+    <a class="brand" href="" aria-label="Tracker home">
+        <span class="brand-mark"><Icon Name="logo" Size="22" StrokeWidth="2.4" /></span>
+        <span class="brand-name">Tracker</span>
+    </a>
+
+    <div class="rail-links">
+        @* One link per tracker that exists (Water today; Protein, Sleep… later), then Settings. *@
+        <NavLink class="rail-link" href="" Match="NavLinkMatch.All" title="Water">
+            <Icon Name="droplet" Size="22" />
+            <span class="rail-label">Water</span>
+        </NavLink>
+        <NavLink class="rail-link" href="settings" title="Settings">
+            <Icon Name="sliders" Size="22" />
+            <span class="rail-label">Settings</span>
+        </NavLink>
+    </div>
+
+    <button type="button" class="rail-link theme-toggle" @onclick="Theme.ToggleAsync" title="Toggle light / dark theme" aria-label="Toggle light or dark theme">
+        <Icon Name="moon" Size="22" Class="show-when-light" />
+        <Icon Name="sun" Size="22" Class="show-when-dark" />
+        <span class="rail-label">Theme</span>
+    </button>
+</nav>

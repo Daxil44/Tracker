@@ -1,0 +1,112 @@
+.tracker { display: grid; gap: 18px; container: tracker / inline-size; }
+
+.tracker .card-head { margin-bottom: 0; }
+
+.quick-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.quick {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 72px;
+    padding: 14px;
+    text-align: left;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    background: var(--surface-strong);
+    cursor: pointer;
+    transition: transform 0.18s var(--ease-out), box-shadow 0.25s, border-color 0.2s;
+}
+
+.quick:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 14px 26px -18px var(--accent);
+}
+
+.quick:active { transform: translateY(0) scale(0.97); }
+
+.quick-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.quick-text { display: grid; min-width: 0; }
+
+.quick-title { font-weight: 700; font-size: 0.9375rem; }
+
+.quick-amount {
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.quick-primary {
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--cyan), var(--accent));
+    box-shadow: var(--shadow-pop);
+}
+
+.quick-primary:hover { border-color: transparent; }
+.quick-primary .quick-icon { color: #fff; background: rgba(255, 255, 255, 0.2); }
+.quick-primary .quick-amount { color: rgba(255, 255, 255, 0.85); }
+
+/* ---- Custom amount ---- */
+
+.custom { display: grid; gap: 8px; }
+
+.input-row { display: flex; gap: 10px; }
+.input-row .input-wrap { flex: 1; }
+.input-row .btn { height: 48px; }
+
+/* ---- Footer: undo + toast ---- */
+
+.tracker-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+}
+
+.toast-slot { min-height: 32px; display: flex; align-items: center; }
+
+.toast {
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    animation: toast-in 0.35s var(--ease-spring);
+}
+
+.toast-ok { color: var(--success); background: var(--success-soft); }
+.toast-info { color: var(--accent-strong); background: var(--accent-soft); }
+.toast-warn { color: var(--warning); background: var(--warning-soft); }
+
+@keyframes toast-in {
+    from { transform: translateY(6px) scale(0.92); opacity: 0; }
+    to { transform: none; opacity: 1; }
+}
+
+/* Respond to the card's own width (it changes with the dashboard grid), not the viewport. */
+@container tracker (max-width: 520px) {
+    .quick-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .quick-primary { grid-column: 1 / -1; }
+    .quick { min-height: 64px; gap: 10px; padding: 12px 10px; }
+    .quick-icon { width: 34px; height: 34px; border-radius: 12px; }
+    .quick-title { white-space: nowrap; }
+}

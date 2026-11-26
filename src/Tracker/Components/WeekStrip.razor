@@ -1,0 +1,40 @@
+@inherits HydrationComponentBase
+
+@{
+    var days = Tracking.GetRecentDays(7);
+    var total = days.Sum(d => d.TotalMl);
+    var met = days.Count(d => d.GoalMet);
+    var average = (int)Math.Round(total / 7.0);
+}
+
+<div class="card-head">
+    <h2 class="card-title">Last 7 days</h2>
+    <span class="muted small">@met of 7 goals met</span>
+</div>
+
+<ul class="week">
+    @foreach (var day in days)
+    {
+        var height = day.TotalMl == 0 ? 0 : Math.Max(4, Math.Min(day.Fraction, 1) * 100);
+        var isToday = day.Date == Tracking.Today;
+        var description = $"{day.Date:dddd}: {Fmt(day.TotalMl)} of {Fmt(day.GoalMl)}{(day.GoalMet ? ", goal met" : "")}";
+        <li class="day @(day.GoalMet ? "is-met" : "") @(isToday ? "is-today" : "")" title="@description">
+            <span class="bar-track">
+                <span class="bar-fill" style="height: @(Css.Num(height))%"></span>
+            </span>
+            <span class="day-label" aria-hidden="true">@(isToday ? "Today" : day.Date.ToString("ddd"))</span>
+            <span class="sr-only">@description</span>
+        </li>
+    }
+</ul>
+
+<div class="week-foot">
+    <div>
+        <span class="muted small">7-day average</span>
+        <strong>@Fmt(average)</strong>
+    </div>
+    <div>
+        <span class="muted small">7-day total</span>
+        <strong>@Fmt(total)</strong>
+    </div>
+</div>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Tracker</title>
+    <meta name="description" content="Tracker: personal daily trackers, starting with water. Your data stays in this browser." />
+    <meta name="theme-color" content="#eef3fa" />
+    <!-- GitHub Pages deploys rewrite this to "/<repository-name>/". -->
+    <base href="/" />
+    <script>
+        // Apply the saved theme before first paint so there is no light/dark flash.
+        (function () {
+            try {
+                var prefs = JSON.parse(localStorage.getItem("tracker.preferences.v1") || "{}");
+                var theme = String(prefs.theme || "").toLowerCase();
+                if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+            } catch (e) { /* storage unavailable: fall back to the OS theme */ }
+        })();
+    </script>
+    <link rel="preload" id="webassembly" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="Tracker.styles.css" />
+    <script type="importmap"></script>
+</head>
+
+<body>
+    <div id="app">
+        <div class="boot" role="status" aria-live="polite">
+            <div class="boot-drop" aria-hidden="true"></div>
+            <p>Loading Tracker…</p>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui" role="alert">
+        Something went wrong.
+        <a href="." class="reload">Reload</a>
+        <button type="button" class="dismiss" aria-label="Dismiss">×</button>
+    </div>
+
+    <script src="js/tracker.js"></script>
+    <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+</body>
+
+</html>

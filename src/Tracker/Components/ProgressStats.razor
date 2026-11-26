@@ -1,0 +1,40 @@
+<div class="card-head">
+    <h2 class="card-title">Today at a glance</h2>
+    <span class="muted small">@Progress.PercentDisplay% complete</span>
+</div>
+
+<div class="progress" role="progressbar" aria-label="Daily goal progress"
+     aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Math.Min(100, Progress.PercentDisplay)">
+    <div class="progress-fill @(Progress.GoalReached ? "is-complete" : "")"
+         style="width: @(Css.Num(Math.Clamp(Progress.Fraction, 0, 1) * 100))%"></div>
+</div>
+
+<dl class="tiles">
+    <div class="tile">
+        <dt>Intake</dt>
+        <dd class="tile-value">@Fmt(Progress.IntakeMl)</dd>
+        <dd class="tile-sub">of @Fmt(Progress.GoalMl) goal</dd>
+    </div>
+    <div class="tile">
+        <dt>Remaining</dt>
+        <dd class="tile-value">@Fmt(Progress.RemainingMl)</dd>
+        <dd class="tile-sub">@(Progress.GoalReached ? "Goal reached" : "left to drink today")</dd>
+    </div>
+    <div class="tile">
+        <dt>Bottles done</dt>
+        <dd class="tile-value">@VolumeFormat.Bottles(Progress.BottlesCompleted)</dd>
+        <dd class="tile-sub">of @VolumeFormat.Bottles(Progress.BottlesRequired) needed</dd>
+    </div>
+    <div class="tile">
+        <dt>Bottles left</dt>
+        <dd class="tile-value">@VolumeFormat.Bottles(Progress.BottlesRemaining)</dd>
+        <dd class="tile-sub">@Fmt(Progress.BottleCapacityMl) each</dd>
+    </div>
+</dl>
+
+@code {
+    [Parameter, EditorRequired] public HydrationProgress Progress { get; set; } = default!;
+    [Parameter] public VolumeUnit Unit { get; set; }
+
+    private string Fmt(int ml) => VolumeFormat.Format(ml, Unit);
+}

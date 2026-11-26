@@ -1,0 +1,222 @@
+@inherits HydrationComponentBase
+@inject ReminderService Reminders
+@inject TimeProvider Clock
+
+@{
+    var prefs = Preferences.Current;
+    var on = prefs.RemindersEnabled;
+    var now = Clock.GetLocalNow();
+    var status = Reminders.GetStatus(now);
+}
+
+<section class="card reminders @(on ? "is-on" : "")" aria-labelledby="reminders-heading">
+    <div class="rem-head">
+        <span class="rem-icon"><Icon Name="bell" Size="22" /></span>
+        <div class="rem-title">
+            <h2 id="reminders-heading">Reminders</h2>
+            <p class="muted small">A nudge during your office hours when you haven't logged water for a while. Changes save automatically.</p>
+        </div>
+        <button type="button" role="switch" aria-checked="@(on ? "true" : "false")" aria-labelledby="reminders-heading"
+                class="switch @(on ? "is-on" : "")" @onclick="ToggleAsync">
+            <span class="switch-thumb"></span>
+        </button>
+    </div>
+
+    <div class="rem-status rem-status-@status.Kind.ToString().ToLowerInvariant()" role="status">
+        <Icon Name="@(status.Kind is ReminderStatusKind.Paused ? "pause" : "clock")" Size="18" />
+        <span>@StatusText(status, now)</span>
+    </div>
+
+    @if (on)
+    {
+        @switch (Reminders.Permission)
+        {
+            case "default":
+                <div class="notice">
+                    <Icon Name="bell" Size="18" />
+                    <p>Allow notifications so reminders can appear even when this tab is in the background.</p>
+                    <button type="button" class="btn btn-primary btn-sm" @onclick="Reminders.RequestPermissionAsync">Allow notifications</button>
+                </div>
+                break;
+            case "denied":
+                <div class="notice notice-warn">
+                    <Icon Name="alert" Size="18" />
+                    <p>
+                        Notifications are blocked for this site, so reminders will only show on the Water page.
+                        To allow them in Chrome, click the icon left of the address bar, open <strong>Site settings</strong>,
+                        set <strong>Notifications</strong> to <strong>Allow</strong>, then reload.
+                    </p>
+                </div>
+                break;
+            case "unsupported":
+                <div class="notice notice-warn">
+                    <Icon Name="alert" Size="18" />
+                    <p>This browser can't show notifications. Reminders will only show on the Water page.</p>
+                </div>
+                break;
+        }
+    }
+
+    <div class="rem-grid">
+        <div class="field">
+            <label for="office-start" class="field-label">Office start</label>
+            <input id="office-start" class="time-input" type="time" @bind="_start" @bind:after="SaveHoursAsync" />
+        </div>
+        <div class="field">
+            <label for="office-end" class="field-label">Office end</label>
+            <input id="office-end" class="time-input" type="time" @bind="_end" @bind:after="SaveHoursAsync" />
+        </div>
+        <div class="field rem-interval">
+            <span class="field-label" id="interval-label">Remind me every</span>
+            <div class="chips" role="radiogroup" aria-labelledby="interval-label">
+                @foreach (var minutes in Intervals)
+                {
+                    var selected = prefs.ReminderIntervalMinutes == minutes;
+                    <button type="button" role="radio" aria-checked="@(selected ? "true" : "false")"
+                            class="chip chip-soft @(selected ? "is-selected" : "")" @onclick="() => SetIntervalAsync(minutes)">
+                        @(minutes < 60 ? $"{minutes} min" : minutes % 60 == 0 ? $"{minutes / 60} hr" : $"{minutes / 60.0:0.#} hr")
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (_start == _end)
+    {
+        <p class="field-hint is-error">Start and end time can't be the same.</p>
+    }
+    else if (_end < _start)
+    {
+        <p class="field-hint">Overnight hours: reminders continue past midnight until @_end.ToString("t").</p>
+    }
+
+    <label class="check-row">
+        <input type="checkbox" checked="@prefs.ReminderStopAtGoal" @onchange="OnStopAtGoalChanged" />
+        <span>Stop reminders once I reach my daily goal</span>
+    </label>
+
+    <div class="rem-actions">
+        @if (status.Kind is ReminderStatusKind.Paused or ReminderStatusKind.Snoozed)
+        {
+            <button type="button" class="btn btn-ghost btn-sm" @onclick="Reminders.ResumeAsync">
+                <Icon Name="play" Size="16" /> Resume reminders
+            </button>
+        }
+        else
+        {
+            <button type="button" class="btn btn-ghost btn-sm" disabled="@(!on)" @onclick="Reminders.SnoozeAsync">
+                <Icon Name="clock" Size="16" /> Snooze @ReminderService.SnoozeMinutes min
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" disabled="@(!on)" @onclick="Reminders.PauseForTodayAsync">
+                <Icon Name="pause" Size="16" /> Pause for today
+            </button>
+        }
+        <button type="button" class="btn btn-ghost btn-sm" disabled="@(!Reminders.NotificationsAllowed)" @onclick="SendTestAsync">
+            <Icon Name="bell" Size="16" /> Send test notification
+        </button>
+        @if (_testMessage is not null)
+        {
+            <span class="test-message @(_testOk ? "is-ok" : "is-warn")" role="status">@_testMessage</span>
+        }
+    </div>
+
+    <div class="rem-note">
+        <strong>Good to know</strong>
+        <p>
+            Reminders only work while Tracker is open in a browser tab (a background tab is fine). They won't arrive
+            if Chrome is closed or your computer is asleep, and Windows Focus / Do Not Disturb can hide them.
+            Browsers slow down background tabs, so a reminder can be up to a minute late.
+        </p>
+    </div>
+</section>
+
+@code {
+    private static readonly int[] Intervals = [30, 45, 60, 90, 120];
+
+    private TimeOnly _start;
+    private TimeOnly _end;
+    private string? _testMessage;
+    private bool _testOk;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _start = Preferences.Current.OfficeStart;
+        _end = Preferences.Current.OfficeEnd;
+        Reminders.Changed += OnRemindersChanged;
+    }
+
+    private void OnRemindersChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task ToggleAsync()
+    {
+        if (Preferences.Current.RemindersEnabled)
+        {
+            await Reminders.SetEnabledAsync(false);
+            return;
+        }
+
+        // Ask for permission only now, in direct response to the user turning reminders on.
+        if (Reminders.Permission == "default")
+        {
+            await Reminders.RequestPermissionAsync();
+        }
+
+        await Reminders.SetEnabledAsync(true);
+    }
+
+    private async Task SaveHoursAsync()
+    {
+        if (_start == _end)
+        {
+            return;
+        }
+
+        await Preferences.UpdateAsync(p => p with { OfficeStart = _start, OfficeEnd = _end });
+    }
+
+    private Task SetIntervalAsync(int minutes) =>
+        Preferences.UpdateAsync(p => p with { ReminderIntervalMinutes = minutes });
+
+    private Task OnStopAtGoalChanged(ChangeEventArgs e) =>
+        Preferences.UpdateAsync(p => p with { ReminderStopAtGoal = e.Value is true });
+
+    private async Task SendTestAsync()
+    {
+        _testOk = await Reminders.SendTestAsync();
+        _testMessage = _testOk
+            ? "Sent. Check your notifications."
+            : "This browser didn't show it. On Android, Chrome only allows notifications from installed apps.";
+    }
+
+    private string StatusText(ReminderStatus status, DateTimeOffset now) => status.Kind switch
+    {
+        ReminderStatusKind.Off => "Reminders are off.",
+        ReminderStatusKind.Paused => "Paused for today. Reminders start again tomorrow.",
+        ReminderStatusKind.GoalReached => "Daily goal reached, so no more reminders today.",
+        ReminderStatusKind.Snoozed => $"Snoozed until {status.At:t}.",
+        ReminderStatusKind.OutsideHours when status.At is { } at =>
+            $"Outside your office hours. Reminders resume {When(at, now)}.",
+        ReminderStatusKind.OutsideHours => "Outside your office hours.",
+        ReminderStatusKind.Scheduled when status.At is { } at && at <= now => "A reminder is due now.",
+        ReminderStatusKind.Scheduled => $"Next reminder around {status.At:t} if you haven't logged water by then.",
+        _ => "",
+    };
+
+    private static string When(DateTimeOffset at, DateTimeOffset now)
+    {
+        var days = DateOnly.FromDateTime(at.DateTime).DayNumber - DateOnly.FromDateTime(now.DateTime).DayNumber;
+        return days switch
+        {
+            0 => $"at {at:t}",
+            1 => $"tomorrow at {at:t}",
+            _ => $"{at:dddd} at {at:t}",
+        };
+    }
+
+    public override void Dispose()
+    {
+        Reminders.Changed -= OnRemindersChanged;
+        base.Dispose();
+    }
+}

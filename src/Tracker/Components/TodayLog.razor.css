@@ -1,0 +1,48 @@
+.log {
+    display: grid;
+    gap: 6px;
+    max-height: 320px;
+    overflow-y: auto;
+    margin-right: -6px;
+    padding-right: 6px;
+}
+
+.log-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 6px 10px 10px;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.2s;
+    animation: slide-in 0.4s var(--ease-out);
+}
+
+.log-item:hover { background: var(--surface-hover); }
+
+@keyframes slide-in {
+    from { transform: translateY(-6px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+}
+
+.log-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.log-main { display: grid; flex: 1; min-width: 0; }
+
+.log-amount { font-weight: 800; }
+
+.log-meta {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

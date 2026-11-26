@@ -1,0 +1,42 @@
+@inherits HydrationComponentBase
+@inject ReminderService Reminders
+@inject TimeProvider Clock
+
+@if (Reminders.IsReminderActive(Clock.GetLocalNow()))
+{
+    var capacity = Preferences.Current.BottleCapacityMl;
+    <div class="reminder-banner" role="status" aria-live="polite">
+        <span class="rb-icon"><Icon Name="bell" Size="22" /></span>
+        <div class="rb-text">
+            <strong>Time for some water</strong>
+            <span>@Reminders.ProgressMessage()</span>
+        </div>
+        <div class="rb-actions">
+            <button type="button" class="btn btn-primary btn-sm" @onclick="() => Tracking.AddAsync(capacity, EntryLabels.FullBottle)">
+                <Icon Name="plus" Size="16" /> @Fmt(capacity)
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" @onclick="Reminders.SnoozeAsync">
+                Snooze @ReminderService.SnoozeMinutes min
+            </button>
+            <button type="button" class="icon-btn" aria-label="Dismiss reminder" title="Dismiss" @onclick="Reminders.DismissAsync">
+                <Icon Name="close" Size="18" />
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Reminders.Changed += OnRemindersChanged;
+    }
+
+    private void OnRemindersChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public override void Dispose()
+    {
+        Reminders.Changed -= OnRemindersChanged;
+        base.Dispose();
+    }
+}

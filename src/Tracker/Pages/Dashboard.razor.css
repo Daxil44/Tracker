@@ -1,0 +1,118 @@
+.dashboard {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: minmax(340px, 5fr) minmax(0, 7fr);
+    grid-template-areas:
+        "header  header"
+        "bottle  tracker"
+        "bottle  stats"
+        "log     week"
+        "note    note";
+    align-items: start;
+}
+
+.dash-header { grid-area: header; display: grid; gap: 6px; padding: 4px 4px 8px; }
+.dash-header h1 { overflow-wrap: anywhere; }
+.bottle-card { grid-area: bottle; align-self: stretch; }
+.tracker-card { grid-area: tracker; }
+.stats-card { grid-area: stats; }
+.log-card { grid-area: log; align-self: stretch; }
+.week-card { grid-area: week; align-self: stretch; }
+.disclaimer { grid-area: note; }
+
+.edit-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.edit-link:hover { text-decoration: underline; }
+
+.bottle-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.bottle-card::before {
+    /* soft halo behind the bottle */
+    content: "";
+    position: absolute;
+    inset: auto 10% 18% 10%;
+    height: 55%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, var(--accent-soft), transparent);
+    pointer-events: none;
+}
+
+.bottle-card-head {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.big-percent {
+    margin-top: 4px;
+    font-size: clamp(2.8rem, 2rem + 2.4vw, 3.6rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    background: linear-gradient(135deg, var(--cyan), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.big-percent span { font-size: 0.5em; margin-left: 2px; }
+
+.disclaimer {
+    padding: 4px;
+    color: var(--text-faint);
+    font-size: 0.8125rem;
+    text-align: center;
+}
+
+/* Tablet: bottle beside the logger, everything else below */
+@media (max-width: 1099px) {
+    .dashboard {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-areas:
+            "header  header"
+            "bottle  tracker"
+            "stats   stats"
+            "log     week"
+            "note    note";
+    }
+
+    .tracker-card { align-self: stretch; }
+}
+
+/* Phone: bottle, progress and quick-add first */
+@media (max-width: 760px) {
+    .dashboard {
+        gap: 14px;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "header"
+            "bottle"
+            "tracker"
+            "stats"
+            "log"
+            "week"
+            "note";
+    }
+
+    .dash-header { gap: 2px; padding: 0 2px; }
+    .dash-header h1 { font-size: 1.5rem; }
+    .lede { font-size: 0.9375rem; }
+    .big-percent { font-size: 2.5rem; }
+    .bottle-card { gap: 4px; }
+}
