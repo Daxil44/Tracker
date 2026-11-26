@@ -16,6 +16,30 @@ Then open http://localhost:5044.
 
 `dotnet watch --project src/Tracker` gives hot reload while editing.
 
+## Deploy (Cloudflare Workers, free)
+
+Hosted as a static-assets Worker at `https://tracker.<account-subdomain>.workers.dev`.
+Every push to `main` deploys automatically.
+
+Cloudflare Workers project settings (Workers & Pages → Create → Import a repository):
+
+| Setting | Value |
+| --- | --- |
+| Project name | `tracker` (must match `name` in [wrangler.jsonc](wrangler.jsonc)) |
+| Build command | `bash build.sh` |
+| Deploy command | `npx wrangler deploy` |
+
+[build.sh](build.sh) installs the .NET SDK pinned in [global.json](global.json) and runs
+`dotnet publish` into `output/`. [wrangler.jsonc](wrangler.jsonc) uploads `output/wwwroot`
+as static assets, with single-page-app fallback so routes like `/settings` load `index.html`.
+No secrets are needed.
+
+To check a production build locally:
+
+```powershell
+dotnet publish src/Tracker/Tracker.csproj -c Release -o output
+```
+
 ## Features (Water)
 
 - Animated SVG bottle that fills toward your daily goal, with partial-bottle counts

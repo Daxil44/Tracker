@@ -1,0 +1,12 @@
+// Cloudflare Workers config: serves the published Blazor WebAssembly files as static assets.
+// No server code runs; Cloudflare just hosts the files from output/wwwroot (created by build.sh).
+{
+  // Must match the project name entered in the Cloudflare dashboard.
+  "name": "tracker",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./output/wwwroot",
+    // Unknown paths like /settings return index.html so the Blazor router can handle them.
+    "not_found_handling": "single-page-application"
+  }
+}

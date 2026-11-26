@@ -1,0 +1,2 @@
+# Shell scripts must keep LF line endings or bash on Cloudflare's Linux builder fails.
+*.sh text eol=lf
