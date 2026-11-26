@@ -1,5 +1,7 @@
 # Tracker
 
+**Live: https://tracker.daxil.workers.dev**
+
 Personal daily trackers in one app, starting with **Water** (protein, sleep and more later).
 Built with **Blazor WebAssembly (standalone, .NET 10)**. Frontend only, with no backend, accounts or paid services.
 All data stays in the browser's `localStorage`.
@@ -18,7 +20,7 @@ Then open http://localhost:5044.
 
 ## Deploy (Cloudflare Workers, free)
 
-Hosted as a static-assets Worker at `https://tracker.<account-subdomain>.workers.dev`.
+Live at **https://tracker.daxil.workers.dev** (a static-assets Worker).
 Every push to `main` deploys automatically.
 
 Cloudflare Workers project settings (Workers & Pages → Create → Import a repository):
