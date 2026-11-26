@@ -34,6 +34,9 @@ public sealed record UserPreferences
 
     public bool OnboardingCompleted { get; set; }
 
+    /// <summary>Answers from "Suggest a goal", if the user has used it. Null otherwise.</summary>
+    public GoalProfile? GoalProfile { get; set; }
+
     public UserPreferences Sanitized() => this with
     {
         DisplayName = CleanName(DisplayName),

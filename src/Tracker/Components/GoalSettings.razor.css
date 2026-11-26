@@ -16,6 +16,25 @@
 .unit-settings { grid-area: unit; }
 .summary-card { grid-area: summary; }
 
+.suggest-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius-md);
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-size: 0.875rem;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.15s var(--ease-out), background-color 0.2s;
+}
+
+.suggest-btn:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.suggest-btn:active { transform: scale(0.99); }
+
 .name-row {
     display: grid;
     grid-template-columns: minmax(0, 360px) minmax(0, 1fr);

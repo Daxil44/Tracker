@@ -48,6 +48,9 @@ dotnet publish src/Tracker/Tracker.csproj -c Release -o output
 - Quick add (full bottle, half bottle, glass), custom amounts, undo, per-entry delete
 - Last-7-days strip, today's log, automatic new day at midnight
 - Settings: your name, bottle size, daily goal (in bottles or ml/L), units
+- Suggested daily goal from sex, age, weight, exercise, heat, creatine, pregnancy/breastfeeding
+  (~30 ml/kg plus add-ons, with minimums from EFSA reference intakes; shows its working; not medical advice)
+- Your data: download a backup file, restore one (merges, skips duplicates), delete all data
 - Reminders during office hours: interval, snooze, pause for today, stop at goal,
   Chrome notifications plus an in-app banner (only while the app is open in a tab)
 - Light and dark themes, responsive from phone to desktop

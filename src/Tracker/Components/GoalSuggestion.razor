@@ -1,0 +1,252 @@
+@* "Not sure? Get a suggestion" dialog. Pure estimate shown with its working; never auto-applied. *@
+
+<div class="overlay" @onclick="Close" @onkeydown="OnKeyDown">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="suggest-title" tabindex="-1"
+         @ref="_sheet" @onclick:stopPropagation="true">
+        <div class="sheet-head">
+            <span class="sheet-icon"><Icon Name="sparkle" Size="22" /></span>
+            <div>
+                <h2 id="suggest-title">Suggest a daily goal</h2>
+                <p class="muted small">A few quick questions for a starting point. Answers stay on this device.</p>
+            </div>
+            <button type="button" class="icon-btn close-btn" aria-label="Close" @onclick="Close">
+                <Icon Name="close" Size="20" />
+            </button>
+        </div>
+
+        <div class="sheet-body">
+            <div class="questions">
+                <div class="q">
+                    <span class="field-label" id="sex-label">Sex</span>
+                    <div class="segmented" role="radiogroup" aria-labelledby="sex-label">
+                        @foreach (var (value, label) in SexOptions)
+                        {
+                            <button type="button" role="radio" aria-checked="@(_profile.Sex == value ? "true" : "false")"
+                                    class="@(_profile.Sex == value ? "is-selected" : "")" @onclick="() => _profile = _profile with { Sex = value }">
+                                @label
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="q-row">
+                    <div class="q">
+                        <label class="field-label" for="suggest-age">Age</label>
+                        <div class="input-wrap">
+                            <input id="suggest-age" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 28"
+                                   @bind="_ageText" @bind:event="oninput" @bind:after="ParseInputs" />
+                            <span class="input-suffix">yrs</span>
+                        </div>
+                    </div>
+                    <div class="q">
+                        <label class="field-label" for="suggest-weight">Weight</label>
+                        <div class="weight-row">
+                            <div class="input-wrap">
+                                <input id="suggest-weight" type="text" inputmode="decimal" autocomplete="off"
+                                       placeholder="@(_profile.WeightUnit == WeightUnit.Kg ? "e.g. 70" : "e.g. 155")"
+                                       @bind="_weightText" @bind:event="oninput" @bind:after="ParseInputs" />
+                            </div>
+                            <div class="segmented unit-toggle" role="radiogroup" aria-label="Weight unit">
+                                <button type="button" role="radio" aria-checked="@(_profile.WeightUnit == WeightUnit.Kg ? "true" : "false")"
+                                        class="@(_profile.WeightUnit == WeightUnit.Kg ? "is-selected" : "")" @onclick="() => SetWeightUnit(WeightUnit.Kg)">kg</button>
+                                <button type="button" role="radio" aria-checked="@(_profile.WeightUnit == WeightUnit.Lb ? "true" : "false")"
+                                        class="@(_profile.WeightUnit == WeightUnit.Lb ? "is-selected" : "")" @onclick="() => SetWeightUnit(WeightUnit.Lb)">lb</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="q">
+                    <span class="field-label" id="exercise-label">Exercise on a typical day</span>
+                    <div class="chips" role="radiogroup" aria-labelledby="exercise-label">
+                        @foreach (var (value, label) in ExerciseOptions)
+                        {
+                            <button type="button" role="radio" aria-checked="@(_profile.Exercise == value ? "true" : "false")"
+                                    class="chip chip-soft @(_profile.Exercise == value ? "is-selected" : "")"
+                                    @onclick="() => _profile = _profile with { Exercise = value }">
+                                @label
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="q checks">
+                    <span class="field-label">Anything else?</span>
+                    <label class="check-row">
+                        <input type="checkbox" checked="@_profile.HotClimate" @onchange="e => _profile = _profile with { HotClimate = e.Value is true }" />
+                        <span>Hot or humid weather, or I work outdoors</span>
+                    </label>
+                    <label class="check-row">
+                        <input type="checkbox" checked="@_profile.TakesCreatine" @onchange="e => _profile = _profile with { TakesCreatine = e.Value is true }" />
+                        <span>I take creatine</span>
+                    </label>
+                    @if (GoalCalculator.CanBePregnant(_profile.Sex))
+                    {
+                        <label class="check-row">
+                            <input type="checkbox" checked="@_profile.Pregnant" @onchange="e => _profile = _profile with { Pregnant = e.Value is true }" />
+                            <span>I'm pregnant</span>
+                        </label>
+                        <label class="check-row">
+                            <input type="checkbox" checked="@_profile.Breastfeeding" @onchange="e => _profile = _profile with { Breastfeeding = e.Value is true }" />
+                            <span>I'm breastfeeding</span>
+                        </label>
+                    }
+                    <label class="check-row">
+                        <input type="checkbox" checked="@_profile.FluidRestriction" @onchange="e => _profile = _profile with { FluidRestriction = e.Value is true }" />
+                        <span>I have a heart, kidney or liver condition, or a doctor told me how much to drink</span>
+                    </label>
+                </div>
+            </div>
+
+            <aside class="result" aria-live="polite">
+                @if (_suggestion.TotalMl is { } total)
+                {
+                    var bottles = BottleMl > 0 ? (double)total / BottleMl : 0;
+                    var rounded = GoalCalculator.RoundToHalfBottles(total, BottleMl);
+                    var office = GoalCalculator.OfficeShare(total, OfficeStart, OfficeEnd);
+                    <p class="result-label">Suggested daily goal</p>
+                    <p class="result-value">@VolumeFormat.Format(total, Unit)</p>
+                    <p class="result-sub">≈ @VolumeFormat.Bottles(bottles) bottles of @VolumeFormat.Format(BottleMl, Unit)</p>
+
+                    <div class="day-note">
+                        <Icon Name="clock" Size="18" />
+                        <p>
+                            This is the <strong>total for your whole day</strong> (home and office together).
+                            @if (office is { } officeMl)
+                            {
+                                <span>
+                                    If you only track water at work, you can set your goal for your office hours
+                                    (<span class="nowrap">@OfficeStart.ToString("t")–@OfficeEnd.ToString("t")</span>) instead:
+                                    about <strong>@VolumeFormat.Format(officeMl, Unit)</strong>.
+                                </span>
+                            }
+                            else
+                            {
+                                <span>You can adjust your goal to match the hours you track.</span>
+                            }
+                        </p>
+                    </div>
+
+                    <ul class="breakdown">
+                        @foreach (var line in _suggestion.Lines)
+                        {
+                            <li><span>@line.Label</span><strong>+@VolumeFormat.Format(line.Ml, Unit)</strong></li>
+                        }
+                    </ul>
+
+                    <div class="result-actions">
+                        <button type="button" class="btn btn-primary" @onclick="() => UseAsync(total)">
+                            <Icon Name="check" Size="18" /> Use @VolumeFormat.Format(total, Unit)
+                        </button>
+                        @if (rounded != total && rounded is >= UserPreferences.MinGoalMl and <= UserPreferences.MaxGoalMl)
+                        {
+                            <button type="button" class="btn btn-ghost" @onclick="() => UseAsync(rounded)">
+                                Use @VolumeFormat.Bottles((double)rounded / BottleMl) bottles (@VolumeFormat.Format(rounded, Unit))
+                            </button>
+                        }
+                        @if (office is { } officeGoal)
+                        {
+                            <button type="button" class="btn btn-ghost" @onclick="() => UseAsync(officeGoal)">
+                                <Icon Name="clock" Size="16" /> Use office-hours goal (@VolumeFormat.Format(officeGoal, Unit))
+                            </button>
+                        }
+                    </div>
+
+                    <ul class="notes">
+                        @foreach (var note in _suggestion.Notes)
+                        {
+                            <li>@note</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div class="result-empty">
+                        <Icon Name="@(_profile.FluidRestriction ? "alert" : "droplet")" Size="26" />
+                        <p>@_suggestion.BlockedReason</p>
+                    </div>
+                }
+            </aside>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public GoalProfile? Profile { get; set; }
+    [Parameter] public int BottleMl { get; set; }
+    [Parameter] public VolumeUnit Unit { get; set; }
+    [Parameter] public TimeOnly OfficeStart { get; set; }
+    [Parameter] public TimeOnly OfficeEnd { get; set; }
+    [Parameter] public EventCallback<(int Ml, GoalProfile Profile)> OnUse { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private static readonly (Sex, string)[] SexOptions = [(Sex.Female, "Female"), (Sex.Male, "Male")];
+
+    private static readonly (ExerciseLevel, string)[] ExerciseOptions =
+    [
+        (ExerciseLevel.None, "None / light"),
+        (ExerciseLevel.About30Minutes, "~30 min"),
+        (ExerciseLevel.About1Hour, "~1 hour"),
+        (ExerciseLevel.TwoHoursPlus, "2+ hours"),
+    ];
+
+    private ElementReference _sheet;
+    private GoalProfile _profile = new();
+    private string? _ageText;
+    private string? _weightText;
+
+    private GoalEstimate _suggestion => GoalCalculator.Suggest(_profile);
+
+    protected override void OnInitialized()
+    {
+        _profile = Profile is null ? new GoalProfile() : Profile with { };
+        _ageText = _profile.Age?.ToString(CultureInfo.CurrentCulture);
+        _weightText = _profile.WeightKg is { } kg ? FormatWeight(kg, _profile.WeightUnit) : null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _sheet.FocusAsync();
+        }
+    }
+
+    private void ParseInputs()
+    {
+        int? age = int.TryParse(_ageText?.Trim(), NumberStyles.Integer, CultureInfo.CurrentCulture, out var a) ? a : null;
+
+        double? kg = null;
+        var text = _weightText?.Trim();
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out var w) ||
+            double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out w))
+        {
+            kg = _profile.WeightUnit == WeightUnit.Lb ? w * GoalCalculator.KgPerLb : w;
+        }
+
+        _profile = _profile with { Age = age, WeightKg = kg is { } k ? Math.Round(k, 1) : null };
+    }
+
+    private void SetWeightUnit(WeightUnit unit)
+    {
+        if (unit == _profile.WeightUnit)
+        {
+            return;
+        }
+
+        _profile = _profile with { WeightUnit = unit };
+        if (_profile.WeightKg is { } kg)
+        {
+            _weightText = FormatWeight(kg, unit);
+        }
+    }
+
+    private static string FormatWeight(double kg, WeightUnit unit) =>
+        (unit == WeightUnit.Lb ? kg / GoalCalculator.KgPerLb : kg).ToString("0.#", CultureInfo.CurrentCulture);
+
+    private Task UseAsync(int ml) => OnUse.InvokeAsync((ml, _profile));
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? Close() : Task.CompletedTask;
+}

@@ -106,6 +106,11 @@
         <p id="goal-hint" class="field-hint @(_goalValid ? "" : "is-error")">
             Between @VolumeFormat.Format(UserPreferences.MinGoalMl, _unit) and @VolumeFormat.Format(UserPreferences.MaxGoalMl, _unit).
         </p>
+
+        <button type="button" class="suggest-btn" @onclick="() => _suggestOpen = true">
+            <Icon Name="sparkle" Size="18" />
+            <span><strong>Not sure?</strong> Get a suggestion based on your weight, age and activity</span>
+        </button>
     </section>
 
     <section class="card setting-card unit-settings" aria-labelledby="unit-heading">
@@ -154,6 +159,14 @@
         </div>
     </section>
 </form>
+
+@* Rendered outside the form so pressing Enter in its inputs can't submit the goal form. *@
+@if (_suggestOpen)
+{
+    <GoalSuggestion Profile="Preferences.Current.GoalProfile" BottleMl="_bottleMl" Unit="_unit"
+                    OfficeStart="Preferences.Current.OfficeStart" OfficeEnd="Preferences.Current.OfficeEnd"
+                    OnUse="UseSuggestionAsync" OnClose="() => _suggestOpen = false" />
+}
 
 @code {
     private static readonly int[] BottlePresets = [350, 500, 600, 750, 1000];
@@ -327,11 +340,13 @@
         ClearStatus();
     }
 
-    private async Task SaveAsync()
+    private Task SaveAsync() => SaveCoreAsync(null);
+
+    private async Task<bool> SaveCoreAsync(GoalProfile? profile)
     {
         if (!InputsValid)
         {
-            return;
+            return false;
         }
 
         var saved = await Preferences.UpdateAsync(p => p with
@@ -340,12 +355,27 @@
             DailyGoalMl = _goalMl,
             BottleCapacityMl = _bottleMl,
             Unit = _unit,
+            GoalProfile = profile ?? p.GoalProfile,
         });
 
         _name = Preferences.Current.DisplayName;
         (_status, _statusKind) = saved
             ? ("Saved. Your dashboard is updated.", "is-ok")
             : ("Applied, but this browser blocked saving. It may reset on refresh.", "is-warn");
+        return saved;
+    }
+
+    private bool _suggestOpen;
+
+    // "Use this goal" from the suggestion dialog: apply and save straight away, remembering the answers.
+    private async Task UseSuggestionAsync((int Ml, GoalProfile Profile) choice)
+    {
+        _suggestOpen = false;
+        SetGoal(choice.Ml);
+        if (await SaveCoreAsync(choice.Profile))
+        {
+            _status = $"Saved. Your daily goal is now {VolumeFormat.Format(_goalMl, _unit)}.";
+        }
     }
 
     private void ClearStatus() => _status = null;
