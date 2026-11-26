@@ -23,4 +23,12 @@ public sealed class PreferencesService(LocalStorageService storage)
         Changed?.Invoke();
         return saved;
     }
+
+    /// <summary>Back to defaults and removed from storage.</summary>
+    public async Task ResetAsync()
+    {
+        Current = new UserPreferences();
+        await storage.RemoveAsync(StorageKeys.Preferences);
+        Changed?.Invoke();
+    }
 }

@@ -14,5 +14,6 @@ builder.Services.AddScoped<PreferencesService>();
 builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<WaterTrackingService>();
 builder.Services.AddScoped<ReminderService>();
+builder.Services.AddScoped<DataBackupService>();
 
 await builder.Build().RunAsync();

@@ -129,6 +129,84 @@ public sealed class WaterTrackingService(
         return removed;
     }
 
+    public int TotalEntryCount => _history.Days.Values.Sum(d => d.Entries.Count);
+
+    public int LoggedDayCount => _history.Days.Values.Count(d => d.Entries.Count > 0);
+
+    /// <summary>A deep copy of the history for backups (callers can't mutate live state).</summary>
+    public HydrationHistory ExportHistory()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(_history, AppJsonContext.Default.HydrationHistory);
+        return System.Text.Json.JsonSerializer.Deserialize(json, AppJsonContext.Default.HydrationHistory)!;
+    }
+
+    /// <summary>
+    /// Adds a backup's entries to the current history. Nothing existing is removed: entries already
+    /// present (same id) are skipped, and invalid entries are ignored.
+    /// </summary>
+    public async Task<(int Added, int Duplicates, int Invalid)> MergeAsync(HydrationHistory incoming)
+    {
+        int added = 0, duplicates = 0, invalid = 0;
+
+        foreach (var (key, day) in incoming.Days)
+        {
+            if (day is null)
+            {
+                continue;
+            }
+
+            var entries = day.Entries ?? [];
+            if (!DateOnly.TryParseExact(key, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+            {
+                invalid += entries.Count;
+                continue;
+            }
+
+            if (!_history.Days.TryGetValue(key, out var record))
+            {
+                var goal = day.GoalMl is >= UserPreferences.MinGoalMl and <= UserPreferences.MaxGoalMl
+                    ? day.GoalMl
+                    : preferences.Current.DailyGoalMl;
+                record = new DailyRecord { Date = date, GoalMl = goal };
+                _history.Days[key] = record;
+            }
+
+            var ids = record.Entries.Select(e => e.Id).ToHashSet();
+            foreach (var entry in entries)
+            {
+                if (entry is null || entry.AmountMl is < 1 or > MaxEntryMl)
+                {
+                    invalid++;
+                    continue;
+                }
+
+                var toAdd = entry.Id == Guid.Empty ? entry with { Id = Guid.NewGuid() } : entry;
+                if (ids.Add(toAdd.Id))
+                {
+                    record.Entries.Add(toAdd);
+                    added++;
+                }
+                else
+                {
+                    duplicates++;
+                }
+            }
+
+            record.Entries.Sort((a, b) => a.LoggedAt.CompareTo(b.LoggedAt));
+        }
+
+        await PersistAsync();
+        return (added, duplicates, invalid);
+    }
+
+    /// <summary>Deletes every water log from this browser.</summary>
+    public async Task ResetAsync()
+    {
+        _history = new HydrationHistory();
+        await storage.RemoveAsync(StorageKeys.History);
+        Changed?.Invoke();
+    }
+
     private DailyRecord GetOrCreateToday()
     {
         var key = Key(Today);

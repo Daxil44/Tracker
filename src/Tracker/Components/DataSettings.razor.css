@@ -1,0 +1,96 @@
+.data-card { display: grid; gap: 16px; }
+
+.data-head { display: flex; align-items: flex-start; gap: 14px; }
+
+.data-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+    color: var(--success);
+    background: var(--success-soft);
+}
+
+.data-title { display: grid; gap: 2px; min-width: 0; }
+.data-title h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -0.01em; }
+
+.data-stats {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+}
+
+.data-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* The real file input is visually hidden inside this label; show focus on the label instead. */
+.file-button { position: relative; }
+.file-button:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.restore-preview,
+.danger-confirm {
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--accent);
+    background: var(--surface-sunken);
+    animation: reveal 0.3s var(--ease-out);
+}
+
+.danger-confirm { border-color: var(--danger); }
+
+@keyframes reveal {
+    from { transform: translateY(-4px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+}
+
+.preview-title { overflow-wrap: anywhere; }
+
+.preview-facts {
+    display: grid;
+    gap: 2px;
+    padding-left: 18px;
+    list-style: disc;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.preview-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+
+.check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    cursor: pointer;
+}
+
+.check-row input { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
+
+.data-message { font-size: 0.875rem; font-weight: 700; }
+.data-message.is-ok { color: var(--success); }
+.data-message.is-error { color: var(--danger); }
+
+.danger-zone { padding-top: 16px; border-top: 1px solid var(--border); }
+
+.danger-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 520px) {
+    .data-actions .btn,
+    .preview-actions .btn { flex: 1 1 auto; }
+}

@@ -10,4 +10,5 @@ namespace Tracker.Serialization;
 [JsonSerializable(typeof(UserPreferences))]
 [JsonSerializable(typeof(HydrationHistory))]
 [JsonSerializable(typeof(ReminderState))]
+[JsonSerializable(typeof(TrackerBackup))]
 internal partial class AppJsonContext : JsonSerializerContext;

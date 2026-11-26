@@ -149,6 +149,15 @@ public sealed class ReminderService(
         RaiseChanged();
     }
 
+    /// <summary>Forgets snooze/pause/last-reminder state (used by "Delete all data").</summary>
+    public async Task ResetAsync()
+    {
+        _state = new ReminderState();
+        _sessionStart = clock.GetLocalNow();
+        await storage.RemoveAsync(StorageKeys.Reminders);
+        RaiseChanged();
+    }
+
     public async Task DismissAsync()
     {
         _state.ActiveSince = null;

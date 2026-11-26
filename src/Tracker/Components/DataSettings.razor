@@ -1,0 +1,222 @@
+@inherits HydrationComponentBase
+@inject DataBackupService Backup
+
+<section class="card data-card" aria-labelledby="data-heading">
+    <div class="data-head">
+        <span class="data-icon"><Icon Name="shield" Size="22" /></span>
+        <div class="data-title">
+            <h2 id="data-heading">Your data</h2>
+            <p class="muted small">
+                Everything is saved only in this browser. Download a backup to keep it safe,
+                or to move it to a new phone, another browser or a new web address.
+            </p>
+        </div>
+    </div>
+
+    <p class="data-stats">
+        <Icon Name="droplet" Size="16" />
+        @Tracking.LoggedDayCount @(Tracking.LoggedDayCount == 1 ? "day" : "days") of water logs ·
+        @Tracking.TotalEntryCount @(Tracking.TotalEntryCount == 1 ? "entry" : "entries")
+    </p>
+
+    <div class="data-actions">
+        <button type="button" class="btn btn-primary btn-sm" @onclick="DownloadAsync">
+            <Icon Name="download" Size="16" /> Download backup
+        </button>
+        <label class="btn btn-ghost btn-sm file-button">
+            <Icon Name="upload" Size="16" /> Restore from backup
+            <InputFile class="sr-only" accept=".json,application/json" OnChange="OnFileChosenAsync" @key="_fileInputKey" />
+        </label>
+    </div>
+
+    @if (_pending is not null)
+    {
+        <div class="restore-preview" role="region" aria-label="Backup to restore">
+            <p class="preview-title"><strong>@_pendingName</strong></p>
+            <ul class="preview-facts">
+                <li>Made @MadeAt(_pending.ExportedAt)</li>
+                <li>@Plural(DataBackupService.DayCount(_pending), "day", "days") · @Plural(DataBackupService.EntryCount(_pending), "water entry", "water entries")</li>
+                @if (_pending.Preferences is { } p)
+                {
+                    <li>Settings@(p.DisplayName is { } n ? $" for {n}" : ""): goal @VolumeFormat.Format(p.DailyGoalMl, p.Unit), @VolumeFormat.Format(p.BottleCapacityMl, p.Unit) bottle</li>
+                }
+            </ul>
+            <p class="small muted">Your current logs stay. Entries from the backup are added, and anything already here is skipped.</p>
+            @if (_pending.Preferences is not null)
+            {
+                <label class="check-row">
+                    <input type="checkbox" checked="@_restoreSettings" @onchange="e => _restoreSettings = e.Value is true" />
+                    <span>Also restore settings (name, goal, bottle, reminders, theme)</span>
+                </label>
+            }
+            <div class="preview-actions">
+                <button type="button" class="btn btn-ghost btn-sm" @onclick="CancelRestore">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" disabled="@_busy" @onclick="RestoreAsync">
+                    <Icon Name="check" Size="16" /> Restore
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (_message is not null)
+    {
+        <p class="data-message @_messageKind" role="status">@_message</p>
+    }
+
+    <div class="danger-zone">
+        @if (!_confirmDelete)
+        {
+            <div class="danger-row">
+                <div>
+                    <strong>Delete all data</strong>
+                    <p class="small muted">Removes your water logs and settings from this browser.</p>
+                </div>
+                <button type="button" class="btn btn-danger-ghost btn-sm" @onclick="() => { _confirmDelete = true; _message = null; }">
+                    <Icon Name="trash" Size="16" /> Delete all
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="danger-confirm" role="alertdialog" aria-labelledby="confirm-delete-text">
+                <p id="confirm-delete-text">
+                    <strong>Delete everything?</strong> This removes @Tracking.TotalEntryCount water
+                    @(Tracking.TotalEntryCount == 1 ? "entry" : "entries") and all settings from this browser. It can't be undone
+                    unless you have a backup.
+                </p>
+                <div class="preview-actions">
+                    <button type="button" class="btn btn-ghost btn-sm" @onclick="DownloadAsync">
+                        <Icon Name="download" Size="16" /> Download backup first
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-sm" @onclick="() => _confirmDelete = false">Cancel</button>
+                    <button type="button" class="btn btn-danger btn-sm" disabled="@_busy" @onclick="DeleteAllAsync">
+                        <Icon Name="trash" Size="16" /> Delete everything
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private TrackerBackup? _pending;
+    private string? _pendingName;
+    private bool _restoreSettings = true;
+    private bool _confirmDelete;
+    private bool _busy;
+    private string? _message;
+    private string _messageKind = "";
+    private int _fileInputKey;
+
+    private async Task DownloadAsync()
+    {
+        var fileName = await Backup.DownloadBackupAsync();
+        Show($"Saved {fileName}. Keep it somewhere safe, like Google Drive or OneDrive.", "is-ok");
+    }
+
+    private async Task OnFileChosenAsync(InputFileChangeEventArgs e)
+    {
+        _pending = null;
+        _message = null;
+        _confirmDelete = false;
+
+        var file = e.File;
+        if (file.Size > DataBackupService.MaxBackupBytes)
+        {
+            Show("That file is too big to be a Tracker backup.", "is-error");
+            ResetFileInput();
+            return;
+        }
+
+        string json;
+        try
+        {
+            await using var stream = file.OpenReadStream(DataBackupService.MaxBackupBytes);
+            using var reader = new StreamReader(stream);
+            json = await reader.ReadToEndAsync();
+        }
+        catch (IOException)
+        {
+            Show("Couldn't read that file. Try choosing it again.", "is-error");
+            ResetFileInput();
+            return;
+        }
+
+        var (backup, error) = DataBackupService.Parse(json);
+        if (backup is null)
+        {
+            Show(error!, "is-error");
+            ResetFileInput();
+            return;
+        }
+
+        _pending = backup;
+        _pendingName = file.Name;
+        _restoreSettings = backup.Preferences is not null;
+    }
+
+    private async Task RestoreAsync()
+    {
+        if (_pending is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        var summary = await Backup.ImportAsync(_pending, _restoreSettings);
+        _busy = false;
+
+        var parts = new List<string> { $"Restored {summary.EntriesAdded} {(summary.EntriesAdded == 1 ? "entry" : "entries")}" };
+        if (summary.Duplicates > 0)
+        {
+            parts.Add($"{summary.Duplicates} already here");
+        }
+
+        if (summary.Invalid > 0)
+        {
+            parts.Add($"{summary.Invalid} invalid skipped");
+        }
+
+        if (summary.SettingsRestored)
+        {
+            parts.Add("settings restored");
+        }
+
+        Show(string.Join(" · ", parts) + ".", "is-ok");
+        _pending = null;
+        ResetFileInput();
+    }
+
+    private void CancelRestore()
+    {
+        _pending = null;
+        ResetFileInput();
+    }
+
+    private async Task DeleteAllAsync()
+    {
+        _busy = true;
+        await Backup.DeleteAllAsync();
+        _busy = false;
+        _confirmDelete = false;
+        _pending = null;
+        Show("All data deleted from this browser.", "is-ok");
+    }
+
+    private static string MadeAt(DateTimeOffset at)
+    {
+        var local = at.ToLocalTime();
+        return $"{local:MMM d, yyyy} at {local:t}";
+    }
+
+    private static string Plural(int count, string one, string many) => $"{count} {(count == 1 ? one : many)}";
+
+    // A new key recreates the file input so choosing the same file again still fires OnChange.
+    private void ResetFileInput() => _fileInputKey++;
+
+    private void Show(string message, string kind)
+    {
+        _message = message;
+        _messageKind = kind;
+    }
+}

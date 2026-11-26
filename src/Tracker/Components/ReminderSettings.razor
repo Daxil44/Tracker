@@ -144,9 +144,20 @@
         _start = Preferences.Current.OfficeStart;
         _end = Preferences.Current.OfficeEnd;
         Reminders.Changed += OnRemindersChanged;
+        Preferences.Changed += OnPreferencesChanged;
     }
 
     private void OnRemindersChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // Keep the time boxes in sync when settings change elsewhere (restore backup, delete all data).
+    private void OnPreferencesChanged()
+    {
+        if (_start != _end)
+        {
+            _start = Preferences.Current.OfficeStart;
+            _end = Preferences.Current.OfficeEnd;
+        }
+    }
 
     private async Task ToggleAsync()
     {
@@ -217,6 +228,7 @@
     public override void Dispose()
     {
         Reminders.Changed -= OnRemindersChanged;
+        Preferences.Changed -= OnPreferencesChanged;
         base.Dispose();
     }
 }

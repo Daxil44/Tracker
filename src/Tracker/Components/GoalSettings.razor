@@ -1,4 +1,5 @@
 @inject PreferencesService Preferences
+@implements IDisposable
 
 <form class="goal-form" @onsubmit="SaveAsync" novalidate>
     <section class="card setting-card name-card" aria-labelledby="name-heading">
@@ -189,10 +190,34 @@
         }
     }
 
-    protected override void OnInitialized() => LoadFrom(Preferences.Current);
+    private UserPreferences _baseline = new();
+
+    protected override void OnInitialized()
+    {
+        LoadFrom(Preferences.Current);
+        Preferences.Changed += OnPreferencesChanged;
+    }
+
+    // Settings can change from elsewhere (restore backup, delete all data). Refresh the form
+    // unless the user has unsaved edits in it.
+    private void OnPreferencesChanged()
+    {
+        if (DraftMatches(_baseline) || DraftMatches(Preferences.Current))
+        {
+            LoadFrom(Preferences.Current);
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private bool DraftMatches(UserPreferences p) =>
+        InputsValid && _goalMl == p.DailyGoalMl && _bottleMl == p.BottleCapacityMl && _unit == p.Unit
+        && UserPreferences.CleanName(_name) == p.DisplayName;
+
+    public void Dispose() => Preferences.Changed -= OnPreferencesChanged;
 
     private void LoadFrom(UserPreferences prefs)
     {
+        _baseline = prefs;
         _name = prefs.DisplayName;
         _unit = prefs.Unit;
         _bottleMl = prefs.BottleCapacityMl;

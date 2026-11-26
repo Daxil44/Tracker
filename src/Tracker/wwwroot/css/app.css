@@ -293,6 +293,17 @@ ul { margin: 0; padding: 0; list-style: none; }
 
 .btn-sm { min-height: 38px; padding: 0 14px; border-radius: 12px; font-size: 0.875rem; }
 
+.btn-danger { color: #fff; background: var(--danger); }
+.btn-danger:hover:not(:disabled) { filter: brightness(1.08); }
+
+.btn-danger-ghost {
+    color: var(--danger);
+    background: transparent;
+    border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+}
+
+.btn-danger-ghost:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+
 /* ---------- Chips (single-choice option buttons) ---------- */
 
 .chips { display: flex; flex-wrap: wrap; gap: 10px; }
